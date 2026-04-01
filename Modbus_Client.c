@@ -2,156 +2,122 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/epoll.h>
 
-// Modbus 参数配置
-#define MODBUS_SERVER_IP "193.169.202.29"  // HSL 仿真软件所在 IP
-#define MODBUS_SERVER_PORT 502        // Modbus TCP 默认端口
-#define SLAVE_ID 1                    // 从站 ID
-
-// Modbus 功能码
-#define FC_READ_HOLDING_REGISTERS 0x03
-
+#define MODBUS_SERVER_IP "193.169.202.29"
+#define MODBUS_SERVER_PORT 502
+#define SLAVE_ID 1
 #define BUFFER_SIZE 1024
 
-int main() {
-    //
-    char ip_str[16];
-    int port;
-    printf("Enter Server IP: ");
-    scanf("%s", ip_str);
-    printf("Enter Server Port: ");
-    scanf("%d", &port);
-    while (getchar() != '\n');// 清空输入缓冲区
+// --- 1. 结构体定义，方便管理 ---
+typedef struct {
+    int fd;
+    uint16_t transaction_id;
+} modbus_t;
 
-    int client_fd;
-    struct sockaddr_in server_addr;
-    char buffer[BUFFER_SIZE] = {0};
+// --- 2. 建立连接 ---
+int modbus_connect(const char *ip, int port) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
 
-    client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_fd < 0) {
-        perror("socket creation failed");
-        exit(EXIT_FAILURE);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, ip, &addr.sin_addr);
+
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        close(fd);
+        return -1;
     }
-    printf("Socket created successfully\n");
+    return fd;
+}
 
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
+// --- 3. 构建并发送 03 请求 ---
+// 这里我们手动计算 Length，为以后支持其他功能码打基础
+int modbus_read_registers(modbus_t *ctx, uint16_t addr, uint16_t quantity) {//03功能码
+    unsigned char req[12];
+    ctx->transaction_id++;
 
-    if (inet_pton(AF_INET, ip_str, &server_addr.sin_addr) <= 0) {
-        printf("Invalid IP address format.\n");
-        close(client_fd);
-        exit(EXIT_FAILURE);
-    }
-
-    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Connection Failed");
-        close(client_fd);
-        exit(EXIT_FAILURE);
-    }
-    printf("Connected to the server.\n");
-
-    int epoll_fd = epoll_create1(0);
-    struct epoll_event event, events[2];
-    event.events = EPOLLIN;
-    event.data.fd = 0;// 监控来自键盘的标准输入
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &event);
-
-    event.events = EPOLLIN;
-    event.data.fd = client_fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event);//监控服务端的消息
-//
-    printf("Enter message (type 'quit' to exit): ");
-    fflush(stdout);
+    // MBAP Header
+    req[0] = (ctx->transaction_id >> 8) & 0xFF;
+    req[1] = ctx->transaction_id & 0xFF;
+    req[2] = 0x00; req[3] = 0x00;           // 协议标识，MODBUS固定为0
+    req[4] = 0x00; req[5] = 0x06;           // 后续单元长度
+    req[6] = 0x01;                          // 从站ID
     
-    unsigned char request[] = {
-        0x00, 0x01, // Transaction ID
-        0x00, 0x00, // Protocol ID (0 = Modbus)
-        0x00, 0x06, // Length (Unit ID + PDU = 1+1+2+2 = 6)
-        0x01,       // Unit ID (从站地址)
-        0x03,       // Function Code (Read Holding Registers)
-        0x00, 0x00, // Starting Address High/Low
-        0x00, 0x01  // Quantity of Registers High/Low (读1个)
-    };
+    // PDU
+    req[7] = 0x03;                          // 功能码
+    req[8] = (addr >> 8) & 0xFF;            // 起始地址高字节
+    req[9] = addr & 0xFF;                   // 起始地址低字节
+    req[10] = (quantity >> 8) & 0xFF;       // 数量高字节
+    req[11] = quantity & 0xFF;              // 数量低字节
 
-    if (send(client_fd, request, sizeof(request), 0) < 0) {
-        perror("send failed");
-        close(client_fd);
-        close(epoll_fd);
-        return 0;
-    }
+    return send(ctx->fd, req, 12, 0);
+}
 
-    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+// --- 4. 接收并解析响应 ---
+int modbus_receive_and_parse(modbus_t *ctx) {
+    unsigned char res[BUFFER_SIZE];
+    int len = recv(ctx->fd, res, sizeof(res), 0);
+    
+    if (len <= 0) return -1;
 
-    if (bytes_received > 0) {
-        printf("Received %d bytes: ", bytes_received);
-        for (int i = 0; i < bytes_received; i++) {
-            printf("%02X ", buffer[i]);
+    // 简单校验响应码是否匹配请求
+    if (res[7] == 0x03) {
+        int byte_count = res[8];// 数据字节数
+        printf("Received %d bytes data. Values: ", byte_count);
+        for (int i = 0; i < byte_count / 2; i++) {//byte_count / 2 表示寄存器个数
+            // Modbus 是大端，高字节在前，需要组合字节
+            int val = (res[9 + i*2] << 8) | res[10 + i*2];
+            printf("[%d] ", val);
         }
         printf("\n");
-
-        // 简易解析：03 功能码响应的数据在第 9 字节开始（前 9 字节是 Header, FC, Byte Count）
-        if (bytes_received >= 9 && buffer[7] == 0x03) {
-            int byte_count = buffer[8];
-            int value = (buffer[9] << 8) | buffer[10];
-            printf("Register 0 Value: %d\n", value);
-        }
+        return 0;
+    } else if (res[7] & 0x80) {
+        printf("Modbus Exception! Error Code: %02X\n", res[8]);
     }
-/*
-    while (1) {
-        int num_events = epoll_wait(epoll_fd, events, 2, -1);
-        for(int i = 0; i < num_events; i++){
-            if (events[i].data.fd == 0) {// 处理标准输入
-                if (fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
-                    if (strcmp(buffer, "quit\n") == 0) {
-                        printf("Exiting the client.\n");
-                        close(client_fd);
-                        close(epoll_fd);
-                        return 0;
-                    }else{
-                        buffer[strcspn(buffer, "\n")] = 0;
-                        if (strlen(buffer)==0){continue;}
-                        ssize_t send_len = send(client_fd, buffer, strlen(buffer), 0);
-                        if (send_len < 0) {
-                            perror("send failed");
-                            close(client_fd);
-                            close(epoll_fd);
-                            return 0;
-                        }
-                    }
-                }else{
-                    perror("fgets failed");
-                    close(client_fd);
-                    close(epoll_fd);
-                    return 0;
-                }
-            }else{// 处理服务器消息
-                memset(buffer, 0, BUFFER_SIZE);
-                ssize_t recv_len = recv(client_fd, buffer, BUFFER_SIZE-1, 0);
-                if (recv_len <= 0) {
-                    if (recv_len < 0) {
-                        perror("Recv failed");
-                    } else {
-                        printf("Server disconnected.\n");
-                    }
-                    close(client_fd);
-                    close(epoll_fd);
-                    return 0;
-                }
-                printf("Received from server: %s\n", buffer);
-                printf("Enter message (type 'quit' to exit): ");
-                fflush(stdout);
-            }
-        }
+    return -1;
+}
 
-    }
+int main() {
+    modbus_t ctx = { .fd = -1, .transaction_id = 0 };
+
+    /*
+    char ip[16];
+    int port;
+    printf("Enter Server IP: ");
+    scanf("%15s", ip);
+    printf("Enter Port: ");
+    scanf("%d", &port);
     */
-    close(client_fd);
-    close(epoll_fd);
+
+    ctx.fd = modbus_connect(MODBUS_SERVER_IP, MODBUS_SERVER_PORT);
+    if (ctx.fd < 0) {
+        perror("Connect failed");
+        return -1;
+    }
+    printf("Connected to %s:%d\n", MODBUS_SERVER_IP, MODBUS_SERVER_PORT);
+
+    // 问答循环
+    while (1) {
+        printf("Press Enter to read Register 0 (or 'q' to quit)...");
+        //getchar(); // 吃掉之前的回车
+        if (getchar() == 'q') break;
+
+        // 发送 03 请求：读取地址 0，数量 1
+        if (modbus_read_registers(&ctx, 0, 1) < 0) {
+            printf("Send failed.\n");
+            break;
+        }
+
+        // 接收响应
+        if (modbus_receive_and_parse(&ctx) < 0) {
+            printf("Receive failed or Server disconnected.\n");
+            break;
+        }
+    }
+
+    close(ctx.fd);
     printf("Client closed.\n");
     return 0;
 }
