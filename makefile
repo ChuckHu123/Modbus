@@ -1,0 +1,14 @@
+CC = gcc
+CFLAGS = -Wall -g
+TARGET = Modbus_Client
+SRCS = Modbus_Client.c Modbus_Function.c
+
+all: $(TARGET)
+
+$(TARGET): $(SRCS)
+	$(CC) $(CFLAGS) -o ./build/$(TARGET) $(SRCS)
+
+clean:
+	rm -f ./build/$(TARGET)
+
+.PHONY: all clean
