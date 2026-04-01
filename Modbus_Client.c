@@ -22,29 +22,34 @@ int main() {
     while (1) {
         printf("\nAvailable Commands: [03] Read, [q] Quit\n");
         printf("Enter command: ");
-        unsigned char res[BUFFER_SIZE];
         
         // 使用 %s 读取字符串，它会自动跳过之前的回车符
         if (scanf("%s", cmd) <= 0) break;
-
         if (strcmp(cmd, "q") == 0) {
             break;
-        } else if (strcmp(cmd, "03") == 0) {
+        } else if (strcmp(cmd, "03") == 0) {//03 读取保持寄存器
             uint16_t addr, qty;
-            printf("Enter Address (0-65535) and Quantity: ");
-            scanf("%hu %hu", &addr, &qty); // %hu 用于读取无符号短整型
+            printf("Enter Address (0-65535): ");
+            scanf("%hu", &addr);
+            printf("Enter Quantity: ");
+            scanf("%hu", &qty);
 
-            if (modbus_read_holding_registers(&ctx, addr, qty) > 0) {
-                int len = modbus_receive(&ctx, res);
-                if (len > 0) {
-                    parse_fc03(res, res[8], addr);
-                }
-            } else {
+            if (modbus_read_holding_registers(&ctx, addr, qty) <= 0) {
                 printf("Send failed.\n");
                 break;
             }
-        } else if (strcmp(cmd, "06") == 0) {
-            // 这里以后放 06 功能码的逻辑
+        } else if (strcmp(cmd, "06") == 0) { //!!!未完成
+            uint16_t addr, value;
+            printf("Enter Address(0-65535): ");
+            scanf("%hu", &addr);
+            printf("Enter Value: ");
+            scanf("%hu", &value);
+
+            if (modbus_write_single_register(&ctx, addr, value) == 0) {
+                printf("Write successful.\n");
+            } else {
+                printf("Write failed.\n");
+            }
         } else {
             printf("Unknown command: %s\n", cmd);
         }
