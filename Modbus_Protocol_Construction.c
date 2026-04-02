@@ -43,3 +43,19 @@ void build_PDU_fc06(unsigned char *pdu, uint16_t addr, uint16_t value){
     pdu[10] = (value >> 8) & 0xFF;
     pdu[11] = value & 0xFF;
 }
+
+void build_PDU_fc10(unsigned char *pdu, uint16_t addr, uint16_t qty){
+    pdu[7] = 0x10;
+    pdu[8] = (addr >> 8) & 0xFF;
+    pdu[9] = addr & 0xFF;
+    pdu[10] = (qty >> 8) & 0xFF;
+    pdu[11] = qty & 0xFF;
+    pdu[12] = qty * 2;
+    for (int i = 0; i < qty; i++){
+        printf("Enter the value of Register [%d]:",addr + i);
+        uint16_t value; 
+        scanf("%hu", &value);
+        pdu[13 + 2*i] = (value >> 8) & 0xFF;
+        pdu[14 + 2*i] = value & 0xFF;
+    }
+}

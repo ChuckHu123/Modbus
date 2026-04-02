@@ -51,7 +51,7 @@ static int validate_mbap_header(const unsigned char *req, const unsigned char *r
         return 0;
     }
 
-    // 3. 检查MBPA的长度字段是否匹配
+    // 3. 检查MBAP的长度字段是否匹配
     uint16_t declared_length = (res[4]<<8) | res[5];
     if (declared_length != (received_len - 6)) {
         printf("Response length mismatch! Expected %d, got %d\n", declared_length, (received_len - 6));
