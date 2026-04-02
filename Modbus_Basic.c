@@ -20,6 +20,18 @@ int modbus_connect(const char *ip, int port) {//返回文件描述符
         close(fd);
         return -1;
     }
+
+    // 设置接收超时为 5 秒
+    struct timeval timeout;
+    timeout.tv_sec = 5;   // 5 秒
+    timeout.tv_usec = 0;
+    
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt failed");
+        close(fd);
+        return -1;
+    }
+    
     return fd;
 }
 

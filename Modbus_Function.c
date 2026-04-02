@@ -33,6 +33,7 @@ int modbus_read_coils(modbus_t *ctx, uint16_t addr, uint16_t qty) {
         perror("Send failed.");
         return -1;
     }
+
     int len = modbus_receive(ctx, res, req);
     if (len > 0) {
         parse_fc01(res, res[8], addr, qty);
