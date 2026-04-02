@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include "Modbus_Function.h"
 
-// --- 解析 01 功能码响应 --- 10000101 00000001 qty=10
+// --- 解析 01 功能码响应 ---
 static void parse_fc01(unsigned char *res, int byte_count, uint16_t addr, uint16_t qty) {
     printf("Raw data (hex): ");
     // 打印原始数据的 16 进制
@@ -68,12 +68,19 @@ int modbus_read_holding_registers(modbus_t *ctx, uint16_t addr, uint16_t qty) {
     return len;
 }
 
-// --- 06 功能码写单个寄存器 ---
-int modbus_write_single_register(modbus_t *ctx, uint16_t addr, uint16_t value) {
+// --- 05 功能码写单个线圈 06 功能码写单个寄存器 ---
+int modbus_write_single(modbus_t *ctx, uint16_t addr, uint16_t value, uint16_t function_code) {
     unsigned char req[12];
     unsigned char res[12];
     build_MBAP(ctx, req, 0x06);
-    build_PDU_fc06(req, addr, value);
+
+    if (function_code == 0x05) {
+        build_PDU_fc05(req, addr, value);
+    } else if (function_code == 0x06) {
+        build_PDU_fc06(req, addr, value);
+    } else {
+        return -1;
+    }
 
     if (send(ctx->fd, req, 12, 0) <= 0) {
         perror("Send failed.");
@@ -86,7 +93,6 @@ int modbus_write_single_register(modbus_t *ctx, uint16_t addr, uint16_t value) {
             return -1;
         }
     }
-
-    printf("Write confirmed. Address: %d, Value: %d\n", addr, value);
+    printf(LIGHT_BLUE "Write confirmed. Address: %d, Value: %d\n" NONE, addr, value);
     return 0;
 }

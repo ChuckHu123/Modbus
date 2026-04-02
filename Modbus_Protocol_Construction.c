@@ -27,6 +27,15 @@ void build_PDU_fc03(unsigned char *pdu, uint16_t addr, uint16_t qty){
     pdu[11] = qty & 0xFF;                   // 数量低字节
 }
 
+void build_PDU_fc05(unsigned char *pdu, uint16_t addr, uint16_t value){
+    pdu[7] = 0x05;
+    pdu[8] = (addr >> 8) & 0xFF;
+    pdu[9] = addr & 0xFF;
+    // ON=0xFF00, OFF=0x0000
+    pdu[10] = (value != 0) ? 0xFF : 0x00;
+    pdu[11] = 0x00;  // 固定为 0x00
+}
+
 void build_PDU_fc06(unsigned char *pdu, uint16_t addr, uint16_t value){
     pdu[7] = 0x06;
     pdu[8] = (addr >> 8) & 0xFF;

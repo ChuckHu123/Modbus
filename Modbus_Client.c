@@ -20,7 +20,7 @@ int main() {
 
     while (1) {
         printf(LIGHT_BLUE "\nAvailable Commands:\n" NONE
-        "[01] Read Coil, [03] Read Single Register, [06] Write Single Register,"
+        "[01] Read Coil, [03] Read Register, [05] Write Single Coil, [06] Write Single Register,"
         LIGHT_CYAN " [q] Quit\n" NONE);
         printf("Enter command: ");
         
@@ -28,45 +28,49 @@ int main() {
         if (scanf("%s", cmd) <= 0) break;
         if (strcmp(cmd, "q") == 0) {
             break;
-        } else if (strcmp(cmd, "01") == 0) {//01 读取线圈
+        } else if (strcmp(cmd, "01") == 0 || strcmp(cmd, "03") == 0) {//01 读取线圈 03 读取保持寄存器
             uint16_t addr, qty;
             printf("Enter Address (0-65535): ");
             scanf("%hu", &addr);
             printf("Enter Quantity: ");
             scanf("%hu", &qty);
-
-            if (modbus_read_coils(&ctx, addr, qty) <= 0){
-                printf("Read failed.\n");
-                break;
+            if (strcmp(cmd, "01") == 0) {
+                if (modbus_read_coils(&ctx, addr, qty) <= 0){
+                    printf("Read failed.\n");
+                    break;
+                }
+            }else if (strcmp(cmd, "03") == 0) {
+                if (modbus_read_holding_registers(&ctx, addr, qty) <= 0) {
+                    printf("Read failed.\n");
+                    break;
+                }
             }
-        } else if (strcmp(cmd, "03") == 0) {//03 读取保持寄存器
-            uint16_t addr, qty;
-            printf("Enter Address (0-65535): ");
-            scanf("%hu", &addr);
-            printf("Enter Quantity: ");
-            scanf("%hu", &qty);
-
-            if (modbus_read_holding_registers(&ctx, addr, qty) <= 0) {
-                printf("Read failed.\n");
-                break;
-            }
-        } else if (strcmp(cmd, "06") == 0) {//06 写单个保持寄存器
+        } else if (strcmp(cmd, "05") == 0 || strcmp(cmd, "06") == 0) {//05 写单个线圈 06 写单个保持寄存器
             uint16_t addr, value;
             printf("Enter Address(0-65535): ");
             scanf("%hu", &addr);
             printf("Enter Value: ");
             scanf("%hu", &value);
-
-            if (modbus_write_single_register(&ctx, addr, value) != 0) {
-                printf("Write failed.\n");
-                break;
+            if (strcmp(cmd, "05") == 0) {
+                if (value > 1 || value < 0){
+                    printf(RED "Error! Value must be 0 or 1.\n" NONE);
+                    continue;
+                }
+                if (modbus_write_single(&ctx, addr, value, 0x05) != 0) {
+                    printf("Write failed.\n");
+                    break;
+                }
+            } else if (strcmp(cmd, "06") == 0) {
+                if (modbus_write_single(&ctx, addr, value, 0x06) != 0) {
+                    printf("Write failed.\n");
+                    break;
+                }
             }
         } else {
             printf("Unknown command: %s\n", cmd);
         }
     }
-
     close(ctx.fd);
-    printf("Client closed.\n");
+    printf(LIGHT_CYAN "Client closed.\n" NONE);
     return 0;
 }
