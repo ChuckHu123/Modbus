@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -g
 TARGET = Modbus_Client
-SRCS = Modbus_Client.c Modbus_Function.c
+SRCS = Modbus_Client.c Modbus_Function.c Modbus_Basic.c
 
 all: $(TARGET)
 

@@ -3,13 +3,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include "Modbus_Basic.h"
 #include "Modbus_Function.h"
-
 
 #define MODBUS_SERVER_IP "193.169.202.29"
 #define MODBUS_SERVER_PORT 502
 #define SLAVE_ID 1
-
 
 int main() {
     modbus_t ctx = { .fd = -1, .transaction_id = 0 };
@@ -20,7 +19,7 @@ int main() {
     printf("Connected to %s:%d\n", MODBUS_SERVER_IP, MODBUS_SERVER_PORT);
 
     while (1) {
-        printf("\nAvailable Commands: [03] Read, [q] Quit\n");
+        printf("\nAvailable Commands: [03] Read, [06] Write, [q] Quit\n");
         printf("Enter command: ");
         
         // 使用 %s 读取字符串，它会自动跳过之前的回车符
@@ -38,17 +37,16 @@ int main() {
                 printf("Send failed.\n");
                 break;
             }
-        } else if (strcmp(cmd, "06") == 0) { //!!!未完成
+        } else if (strcmp(cmd, "06") == 0) {//06 写单个保持寄存器
             uint16_t addr, value;
             printf("Enter Address(0-65535): ");
             scanf("%hu", &addr);
             printf("Enter Value: ");
             scanf("%hu", &value);
 
-            if (modbus_write_single_register(&ctx, addr, value) == 0) {
-                printf("Write successful.\n");
-            } else {
+            if (modbus_write_single_register(&ctx, addr, value) != 0) {
                 printf("Write failed.\n");
+                break;
             }
         } else {
             printf("Unknown command: %s\n", cmd);
