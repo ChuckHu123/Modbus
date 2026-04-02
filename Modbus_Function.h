@@ -5,6 +5,7 @@
 #include "Modbus_Protocol_Construction.h"
 
 // --- Modbus 功能函数 ---
+int modbus_read_coils(modbus_t *ctx, uint16_t addr, uint16_t qty);
 int modbus_read_holding_registers(modbus_t *ctx, uint16_t addr, uint16_t qty);
 int modbus_write_single_register(modbus_t *ctx, uint16_t addr, uint16_t value);
 
