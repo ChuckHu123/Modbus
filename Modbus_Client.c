@@ -19,8 +19,9 @@ int main() {
     printf("Connected to %s:%d\n", MODBUS_SERVER_IP, MODBUS_SERVER_PORT);
 
     while (1) {
-        printf("\nAvailable Commands:\n"
-        "[01] Read Coil, [03] Read Single Register, [06] Write Single Register, [q] Quit\n");
+        printf(LIGHT_BLUE "\nAvailable Commands:\n" NONE
+        "[01] Read Coil, [03] Read Single Register, [06] Write Single Register,"
+        LIGHT_CYAN " [q] Quit\n" NONE);
         printf("Enter command: ");
         
         // 使用 %s 读取字符串，它会自动跳过之前的回车符

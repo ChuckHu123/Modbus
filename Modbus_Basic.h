@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+// --- 定义颜色 ---
+#define NONE "\033[m"
+#define RED "\033[0;32;31m"
+#define LIGHT_BLUE "\033[1;34m"
+#define LIGHT_CYAN "\033[1;36m"
 
 #define BUFFER_SIZE 1024
 
