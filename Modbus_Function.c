@@ -98,14 +98,36 @@ int modbus_write_single(modbus_t *ctx, uint16_t addr, uint16_t value, uint16_t f
     return 0;
 }
 
-// --- 10 功能码写多个保持寄存器 ---
-int modbus_write_multiple_registers(modbus_t *ctx, uint16_t addr, uint16_t qty) {
-    unsigned char req[13+2*qty];
-    unsigned char res[12];
-    build_MBAP(ctx, req, 7+2*qty);
-    build_PDU_fc10(req, addr, qty);
+// --- 10 功能码写多个保持寄存器 0f 功能码写多个线圈 ---
+int modbus_write_multiple(modbus_t *ctx, uint16_t addr, uint16_t qty, uint16_t function_code) {
+    int data_byte_count;
+    int total_len;
+    
+    if (function_code == 0x10) {
+        // 功能码 10: 每个寄存器 2 字节
+        data_byte_count = qty * 2;
+        total_len = 13 + data_byte_count;
+    } else if (function_code == 0x0F) {
+        // 功能码 0F: 每 8 个线圈打包成 1 字节，向上取整
+        data_byte_count = (qty + 7) / 8;
+        total_len = 13 + data_byte_count;
+    } else {
+        return -1;
+    }
 
-    if (send(ctx->fd, req, 13+2*qty, 0) <= 0) {
+    unsigned char req[total_len];
+    unsigned char res[12];
+    build_MBAP(ctx, req, 7 + data_byte_count);
+
+    if (function_code == 0x10) {
+        build_PDU_fc10(req, addr, qty);
+    } else if (function_code == 0x0F) {
+        build_PDU_fc0f(req, addr, qty);
+    } else {
+        return -1;
+    }
+
+    if (send(ctx->fd, req, total_len, 0) <= 0) {
         perror("Send failed.");
         return -1;
     }

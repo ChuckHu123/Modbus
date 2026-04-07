@@ -21,7 +21,7 @@ int main() {
     while (1) {
         printf(LIGHT_BLUE "\nAvailable Commands:\n" NONE
         "[01] Read Coil, [03] Read Register, [05] Write Single Coil, [06] Write Single Register\n"
-        "[0f] Write Multiple Coils, [10] Write Multiple Registers,"
+        "[0F] Write Multiple Coils, [10] Write Multiple Registers,"
         LIGHT_CYAN " [q] Quit\n" NONE);
         printf("Enter command: ");
         
@@ -67,15 +67,22 @@ int main() {
                     break;
                 }
             }
-        } else if (strcmp(cmd, "10") == 0) {//10 写多个保持寄存器(一个寄存器占两个字节) 未完成！！！
+        } else if (strcmp(cmd, "10") == 0 || strcmp(cmd, "0F") == 0) {//10 写多个保持寄存器(一个寄存器占两个字节) //0f 写多个线圈(一个线圈占一位）
             uint16_t addr, qty;
             printf("Enter Address(0-65535): ");
             scanf("%hu", &addr);
             printf("Enter Quantity: ");
             scanf("%hu", &qty);
-            if (modbus_write_multiple_registers(&ctx, addr, qty) != 0) {
-                printf("Write failed.\n");
-                break;
+            if (strcmp(cmd, "10") == 0){
+                if (modbus_write_multiple(&ctx, addr, qty, 0x10) != 0) {
+                    printf("Write failed.\n");
+                    break;
+                }
+            } else if (strcmp(cmd, "0F") == 0){
+                if (modbus_write_multiple(&ctx, addr, qty, 0x0F) != 0) {
+                    printf("Write failed.\n");
+                    break;
+                }
             }
         }else {
             printf("Unknown command: %s\n", cmd);
