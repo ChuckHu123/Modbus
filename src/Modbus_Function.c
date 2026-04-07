@@ -3,7 +3,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include "Modbus_Function.h"
+#include "../include/Modbus_Function.h"
 
 // --- 解析 01 功能码响应 ---
 static void parse_fc01(unsigned char *res, int byte_count, uint16_t addr, uint16_t qty) {

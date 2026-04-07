@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "Modbus_Basic.h"
-#include "Modbus_Protocol_Construction.h"
+#include "../include/Modbus_Protocol_Construction.h"
 
 
 void build_MBAP(modbus_t *ctx, unsigned char *req, uint16_t byte_len) {

@@ -1,7 +1,9 @@
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -I./include
 TARGET = Modbus_Client
-SRCS = Modbus_Client.c Modbus_Function.c Modbus_Basic.c Modbus_Protocol_Construction.c
+SRCS_DIR = src
+SRCS = $(SRCS_DIR)/Modbus_Client.c $(SRCS_DIR)/Modbus_Function.c \
+		$(SRCS_DIR)/Modbus_Basic.c $(SRCS_DIR)/Modbus_Protocol_Construction.c
 
 all: $(TARGET)
 

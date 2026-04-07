@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include "Modbus_Basic.h"
+#include "../include/Modbus_Basic.h"
 
 // --- 建立连接 ---
 int modbus_connect(const char *ip, int port) {//返回文件描述符

@@ -3,8 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include "Modbus_Basic.h"
-#include "Modbus_Function.h"
+#include "../include/Modbus_Basic.h"
+#include "../include/Modbus_Function.h"
 
 #define MODBUS_SERVER_IP "193.169.202.108"
 #define MODBUS_SERVER_PORT 502
