@@ -88,11 +88,14 @@ int modbus_write_single(modbus_t *ctx, uint16_t addr, uint16_t value, uint16_t f
         return -1;
     }
 
-    if (modbus_receive(ctx, res, req) <= 0) {
-        if (memcmp(res, req, 12) != 0) {
-            perror("Response mismatch!\n");
-            return -1;
-        }
+    int len = modbus_receive(ctx, res, req);
+    if (len <= 0) {
+        return -1;
+    }
+    // 验证响应是否与请求一致（功能码 05/06 应该回显请求）
+    if (len != 12 || memcmp(res, req, 12) != 0) {
+        printf("Response mismatch!\n");
+        return -1;
     }
     printf(LIGHT_BLUE "Write confirmed. Address: %d, Value: %d\n" NONE, addr, value);
     return 0;

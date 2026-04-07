@@ -39,7 +39,7 @@ void build_MBAP_header(unsigned char *buffer, uint16_t transaction_id, uint16_t 
 int build_exception_response(unsigned char *request, uint8_t exception_code, unsigned char *response) {
     uint16_t transaction_id = (request[0] << 8) | request[1];
     build_MBAP_header(response, transaction_id, 3);
-    response[7] = request[7];
+    response[7] = request[7] | 0x80;
     response[8] = exception_code;
     return 9;
 }
@@ -240,12 +240,20 @@ void read_cb(struct bufferevent *bev, void *ctx) {
     unsigned char response[BUFFER_SIZE];
     size_t nread = evbuffer_remove(input, buffer, sizeof(buffer));
     
-    printf("Received %zu bytes from client\n", nread);
+    printf("Received :");
+    for (size_t i = 0; i < nread; i++) {
+        printf(" %02X", buffer[i]);
+    }
+    printf("\n");
     
     int response_len = process_modbus_request(buffer, nread, response);// 处理 Modbus 请求并构建响应
     if (response_len > 0) {
         bufferevent_write(bev, response, response_len);
-        printf("Sent %d bytes response\n", response_len);
+        printf("Send :");
+        for (int i = 0; i < response_len; i++) {
+            printf(" %02X", response[i]);
+        }
+        printf("\n");
     }
 }
 
