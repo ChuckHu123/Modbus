@@ -45,6 +45,39 @@ void build_PDU_fc06(unsigned char *pdu, uint16_t addr, uint16_t value){
     pdu[11] = value & 0xFF;
 }
 
+void build_PDU_fc0f(unsigned char *pdu, uint16_t addr, uint16_t qty){
+    pdu[7] = 0x0F;
+    pdu[8] = (addr >> 8) & 0xFF;
+    pdu[9] = addr & 0xFF;
+    pdu[10] = (qty >> 8) & 0xFF;
+    pdu[11] = qty & 0xFF;
+    // 计算需要的字节数（每8个线圈占1个字节，向上取整）
+    uint8_t byte_count = (qty + 7) / 8;
+    pdu[12] = byte_count;
+
+    // 初始化数据区域为0
+    for (int i = 0; i < byte_count; i++) {
+        pdu[13 + i] = 0x00;
+    }
+
+    for (int i = 0; i < qty; i++){
+        printf("Enter the value of coil [%d] (0 or 1):", addr + i);
+        uint16_t value;
+        scanf("%hu", &value);
+        if (value == 0 || value == 1){
+            // 将第i个线圈的状态设置到对应的字节和位
+            int byte_index = i / 8;      // 确定在第几个字节
+            int bit_index = i % 8;       // 确定在该字节的第几位
+            if (value != 0) {
+                pdu[13 + byte_index] |= (1 << bit_index);  // 设置对应位为1
+            }
+        }else{
+            printf("Invalid value. Please enter 0 or 1.\n");
+            i--;
+        }
+    }
+}
+
 void build_PDU_fc10(unsigned char *pdu, uint16_t addr, uint16_t qty){
     pdu[7] = 0x10;
     pdu[8] = (addr >> 8) & 0xFF;
