@@ -97,3 +97,23 @@ int modbus_write_single(modbus_t *ctx, uint16_t addr, uint16_t value, uint16_t f
     printf(LIGHT_BLUE "Write confirmed. Address: %d, Value: %d\n" NONE, addr, value);
     return 0;
 }
+
+// --- 10 功能码写多个保持寄存器 ---
+int modbus_write_multiple_registers(modbus_t *ctx, uint16_t addr, uint16_t qty) {
+    unsigned char req[13+2*qty];
+    unsigned char res[12];
+    build_MBAP(ctx, req, 7+2*qty);
+    build_PDU_fc10(req, addr, qty);
+
+    if (send(ctx->fd, req, 13+2*qty, 0) <= 0) {
+        perror("Send failed.");
+        return -1;
+    }
+
+    int len = modbus_receive(ctx, res, req);
+    if (len > 0) {
+        printf(LIGHT_BLUE "Write confirmed. Address: %d, Quantity: %d\n" NONE, addr, qty);
+    }
+    
+    return 0;
+}

@@ -6,7 +6,7 @@
 #include "Modbus_Basic.h"
 #include "Modbus_Function.h"
 
-#define MODBUS_SERVER_IP "193.169.202.29"
+#define MODBUS_SERVER_IP "193.169.202.108"
 #define MODBUS_SERVER_PORT 502
 #define SLAVE_ID 1
 
@@ -67,7 +67,17 @@ int main() {
                     break;
                 }
             }
-        } else {
+        } else if (strcmp(cmd, "10") == 0) {//10 写多个保持寄存器(一个寄存器占两个字节) 未完成！！！
+            uint16_t addr, qty;
+            printf("Enter Address(0-65535): ");
+            scanf("%hu", &addr);
+            printf("Enter Quantity: ");
+            scanf("%hu", &qty);
+            if (modbus_write_multiple_registers(&ctx, addr, qty) != 0) {
+                printf("Write failed.\n");
+                break;
+            }
+        }else {
             printf("Unknown command: %s\n", cmd);
         }
     }
