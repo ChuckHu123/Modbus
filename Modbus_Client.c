@@ -21,7 +21,7 @@ int main() {
     while (1) {
         printf(LIGHT_BLUE "\nAvailable Commands:\n" NONE
         "[01] Read Coil, [03] Read Register, [05] Write Single Coil, [06] Write Single Register\n"
-        "[10] Write Multiple Registers,"
+        "[0f] Write Multiple Coils, [10] Write Multiple Registers,"
         LIGHT_CYAN " [q] Quit\n" NONE);
         printf("Enter command: ");
         
