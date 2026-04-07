@@ -6,7 +6,7 @@
 #include "../include/Modbus_Basic.h"
 #include "../include/Modbus_Function.h"
 
-#define MODBUS_SERVER_IP "193.169.202.108"
+#define MODBUS_SERVER_IP "127.0.0.1"//"193.169.202.108"
 #define MODBUS_SERVER_PORT 502
 #define SLAVE_ID 1
 
