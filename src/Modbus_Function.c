@@ -118,6 +118,12 @@ int modbus_write_multiple(modbus_t *ctx, uint16_t addr, uint16_t qty, uint16_t f
         return -1;
     }
 
+    // 检查总长度是否合理
+    if (total_len > BUFFER_SIZE) {
+        printf("Request too large\n");
+        return -1;
+    }
+
     unsigned char req[total_len];
     unsigned char res[12];
     build_MBAP(ctx, req, 7 + data_byte_count);
@@ -138,7 +144,8 @@ int modbus_write_multiple(modbus_t *ctx, uint16_t addr, uint16_t qty, uint16_t f
     int len = modbus_receive(ctx, res, req);
     if (len > 0) {
         printf(LIGHT_BLUE "Write confirmed. Address: %d, Quantity: %d\n" NONE, addr, qty);
+        return 0;
     }
     
-    return 0;
+    return -1;
 }

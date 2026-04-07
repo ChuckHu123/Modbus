@@ -52,7 +52,7 @@ int handle_read_coils(unsigned char *request, size_t request_len, unsigned char 
     int16_t start_addr = (request[8] << 8) | request[9];
     uint16_t quantity = (request[10] << 8) | request[11];
     // 检查地址范围
-    if (start_addr + quantity > MAX_REGISTERS) {
+    if (start_addr < 0 || quantity == 0 || start_addr + quantity > MAX_REGISTERS) {
         return build_exception_response(request, 0x02, response);
     }
     uint8_t byte_count = (quantity + 7) / 8;//计算字节数
@@ -80,7 +80,7 @@ int handle_read_holding_registers(unsigned char *request, size_t request_len, un
     }
     int16_t start_addr = (request[8] << 8) | request[9];
     uint16_t quantity = (request[10] << 8) | request[11];
-    if (start_addr + quantity > MAX_REGISTERS) {
+    if (start_addr < 0 || quantity == 0 || start_addr + quantity > MAX_REGISTERS) {
         return build_exception_response(request, 0x02, response);
     }
     uint16_t transaction_id = (request[0] << 8) | request[1];
@@ -104,7 +104,7 @@ int handle_write_single_coil(unsigned char *request, size_t request_len, unsigne
     int16_t addr = (request[8] << 8) | request[9];
     uint16_t value = (request[10] << 8) | request[11];
 
-    if (addr >= MAX_REGISTERS) {
+    if (addr < 0 || addr >= MAX_REGISTERS) {
         return build_exception_response(request, 0x02, response);
     }
 
@@ -126,7 +126,7 @@ int handle_write_single_register(unsigned char *request, size_t request_len, uns
     int16_t addr = (request[8] << 8) | request[9];
     uint16_t value = (request[10] << 8) | request[11];
 
-    if (addr >= MAX_REGISTERS) {
+    if (addr < 0 || addr >= MAX_REGISTERS) {
         return build_exception_response(request, 0x02, response);
     }
 
@@ -199,8 +199,8 @@ int process_modbus_request(unsigned char *req, size_t request_len, unsigned char
         return 0;
     }
 
-    if (req[2] != 0x00 || req[3] != 0x00){ //检查协议标识
-        printf("Invalid request: unit ID mismatch\n");
+    if (req[2] != 0x00 || req[3] != 0x00){ //检查协议标识符
+        printf("Invalid request: protocol ID mismatch\n");
         return 0;
     }
 
