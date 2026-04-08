@@ -23,7 +23,8 @@ uint8_t coils[MAX_REGISTERS] = {0};
 // 客户端数据结构
 typedef struct {
     struct bufferevent *bev;
-    // 可以添加客户端特定的状态信息
+    unsigned char recv_buffer[BUFFER_SIZE];  // 接收缓冲区
+    size_t recv_len;                          // 当前缓冲区中的数据长度
 } client_data_t;
 
 void build_MBAP_header(unsigned char *buffer, uint16_t transaction_id, uint16_t length) {
@@ -226,44 +227,77 @@ int process_modbus_request(unsigned char *req, size_t request_len, unsigned char
         default:
             printf("Unsupported function code: 0x%02X\n", function_code);
             return build_exception_response(req, 0x01, response); // 非法功能码
-    }
+ 
+       }
 }
 
 // 【回调1】当客户端发送数据时，libevent 自动调用此函数
-void read_cb(struct bufferevent *bev, void *ctx) {
+void read_cb(struct bufferevent *bev, void *ctx) {client_data_t *client = (client_data_t *)ctx;
     struct evbuffer *input = bufferevent_get_input(bev);
-    size_t len = evbuffer_get_length(input);
+    size_t available = evbuffer_get_length(input);
     
-    if (len == 0) return;
+    if (available == 0) return;
+
+    size_t nread = evbuffer_remove(input, 
+            client->recv_buffer + client->recv_len, 
+            sizeof(client->recv_buffer) - client->recv_len);
+    client->recv_len += nread;
     
-    unsigned char buffer[BUFFER_SIZE];
-    unsigned char response[BUFFER_SIZE];
-    size_t nread = evbuffer_remove(input, buffer, sizeof(buffer));
+    printf("Received %zu bytes, total buffer: %zu bytes\n", nread, client->recv_len);
     
-    printf("Received :");
-    for (size_t i = 0; i < nread; i++) {
-        printf(" %02X", buffer[i]);
-    }
-    printf("\n");
-    
-    int response_len = process_modbus_request(buffer, nread, response);// 处理 Modbus 请求并构建响应
-    if (response_len > 0) {
-        bufferevent_write(bev, response, response_len);
-        printf("Send :");
-        for (int i = 0; i < response_len; i++) {
-            printf(" %02X", response[i]);
+    while(client->recv_len >= 7){
+        uint16_t mbap_len = (client->recv_buffer[4]<<8) | client->recv_buffer[5];//计算 MBAP 中的长度字段
+        size_t total_len=6+mbap_len;//完整数据长度
+
+        if(client->recv_len<total_len){
+            printf("Incomplete frame, waiting for more data\n");
+            break;
         }
-        printf("\n");
+
+        unsigned char response[BUFFER_SIZE];
+        int response_len = process_modbus_request(client->recv_buffer, total_len, response);// 处理 Modbus 请求并构建响应
+        if (response_len > 0) {
+            bufferevent_write(bev, response, response_len);
+            printf("Send :");
+            for (int i = 0; i < response_len; i++) {
+                printf(" %02X", response[i]);
+            }
+            printf("\n");
+        }
+
+        // 从缓冲区中移除已处理的帧，把后面没处理的盖到前面去
+        size_t remaining = client->recv_len - total_len;
+        if (remaining > 0) {
+            memmove(client->recv_buffer, 
+                    client->recv_buffer + total_len, 
+                    remaining);
+        }
+        client->recv_len = remaining;
+
+        printf("Processed frame (%zu bytes), remaining in buffer: %zu bytes\n", 
+               total_len, client->recv_len);
+    }
+    // 防止缓冲区溢出（理论上不应该发生，因为上面已经处理了）
+    if (client->recv_len >= BUFFER_SIZE) {
+        fprintf(stderr, "Buffer overflow! Resetting buffer.\n");
+        client->recv_len = 0;
     }
 }
 
 // 【回调2】当连接发生错误或断开时，libevent 自动调用此函数
 void event_cb(struct bufferevent *bev, short events, void *ctx) {
+    client_data_t *client = (client_data_t *)ctx;
+
     if (events & BEV_EVENT_EOF) {
         printf("Client disconnected\n");
     } else if (events & BEV_EVENT_ERROR) {
         printf("Got an error on the connection: %s\n", strerror(errno));
     }
+
+    if (client) {
+        free(client);
+    }
+
     bufferevent_free(bev);
 }
 
@@ -284,7 +318,18 @@ void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
         return;
     }
     
-    bufferevent_setcb(bev, read_cb, NULL, event_cb, NULL); //设置回调函数
+    // 分配并初始化客户端数据
+    client_data_t *client = (client_data_t *)malloc(sizeof(client_data_t));
+    if (!client) {
+        fprintf(stderr, "Error allocating client data!\n");
+        bufferevent_free(bev);
+        return;
+    }
+    client->bev = bev;
+    client->recv_len = 0;
+    memset(client->recv_buffer, 0, sizeof(client->recv_buffer));
+
+    bufferevent_setcb(bev, read_cb, NULL, event_cb, client); //设置回调函数
     
     // 启用读写事件监听
     bufferevent_enable(bev, EV_READ | EV_WRITE);
