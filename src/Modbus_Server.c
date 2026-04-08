@@ -238,6 +238,12 @@ void read_cb(struct bufferevent *bev, void *ctx) {
     
     if (available == 0) return;
 
+    // 防止缓冲区溢出
+    if (client->recv_len >= BUFFER_SIZE) {
+        fprintf(stderr, "Buffer overflow! Resetting buffer.\n");
+        client->recv_len = 0;
+    }
+
     size_t nread = evbuffer_remove(input, 
             client->recv_buffer + client->recv_len, 
             sizeof(client->recv_buffer) - client->recv_len);
@@ -249,6 +255,19 @@ void read_cb(struct bufferevent *bev, void *ctx) {
         uint16_t mbap_len = (client->recv_buffer[4]<<8) | client->recv_buffer[5];//计算 MBAP 中的长度字段
         size_t total_len=6+mbap_len;//完整数据长度
 
+        // 检查 MBAP 长度字段是否合理
+        if (mbap_len > 512) {
+            printf("Invalid MBAP length: %u, closing connection\n", mbap_len);
+            bufferevent_free(bev);
+            return;
+        }
+        //检查完整帧是否超过缓冲区大小
+        if (total_len > BUFFER_SIZE) {
+            printf("Frame too large: %zu bytes, closing connection\n", total_len);
+            bufferevent_free(bev);
+            return;
+        }
+        
         if(client->recv_len<total_len){
             printf("Incomplete frame, waiting for more data\n");
             break;
@@ -281,11 +300,7 @@ void read_cb(struct bufferevent *bev, void *ctx) {
         printf("Processed frame (%zu bytes), remaining in buffer: %zu bytes\n", 
                total_len, client->recv_len);
     }
-    // 防止缓冲区溢出（理论上不应该发生，因为上面已经处理了）
-    if (client->recv_len >= BUFFER_SIZE) {
-        fprintf(stderr, "Buffer overflow! Resetting buffer.\n");
-        client->recv_len = 0;
-    }
+    
 }
 
 // 【回调2】当连接发生错误或断开时，libevent 自动调用此函数
