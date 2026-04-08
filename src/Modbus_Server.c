@@ -268,7 +268,7 @@ void read_cb(struct bufferevent *bev, void *ctx) {
             bufferevent_free(bev);
             return;
         }
-
+        //判断报文是否完全到达，没有就继续等
         if(client->recv_len<total_len){
             printf("Incomplete frame, waiting for more data\n");
             break;
@@ -278,6 +278,12 @@ void read_cb(struct bufferevent *bev, void *ctx) {
         int response_len = process_modbus_request(client->recv_buffer, total_len, response);// 处理 Modbus 请求并构建响应
         if (response_len > 0) {
             bufferevent_write(bev, response, response_len);
+            printf("Recv :");
+            for (size_t i = 0; i < total_len; i++) {
+                printf(" %02X", client->recv_buffer[i]);
+            }
+            printf("\n");
+
             printf("Send :");
             for (int i = 0; i < response_len; i++) {
                 printf(" %02X", response[i]);
