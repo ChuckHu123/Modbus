@@ -238,12 +238,6 @@ void read_cb(struct bufferevent *bev, void *ctx) {
     
     if (available == 0) return;
 
-    // 防止缓冲区溢出
-    if (client->recv_len >= BUFFER_SIZE) {
-        fprintf(stderr, "Buffer overflow! Resetting buffer.\n");
-        client->recv_len = 0;
-    }
-
     size_t nread = evbuffer_remove(input, 
             client->recv_buffer + client->recv_len, 
             sizeof(client->recv_buffer) - client->recv_len);
@@ -251,6 +245,13 @@ void read_cb(struct bufferevent *bev, void *ctx) {
     
     printf("Received %zu bytes, total buffer: %zu bytes\n", nread, client->recv_len);
     
+    // 防止缓冲区溢出
+    if (client->recv_len >= BUFFER_SIZE) {
+        fprintf(stderr, "Buffer overflow! Resetting buffer.\n");
+        bufferevent_free(bev);
+        return;
+    }
+
     while(client->recv_len >= 7){
         uint16_t mbap_len = (client->recv_buffer[4]<<8) | client->recv_buffer[5];//计算 MBAP 中的长度字段
         size_t total_len=6+mbap_len;//完整数据长度
@@ -267,7 +268,7 @@ void read_cb(struct bufferevent *bev, void *ctx) {
             bufferevent_free(bev);
             return;
         }
-        
+
         if(client->recv_len<total_len){
             printf("Incomplete frame, waiting for more data\n");
             break;
