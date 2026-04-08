@@ -227,12 +227,12 @@ int process_modbus_request(unsigned char *req, size_t request_len, unsigned char
         default:
             printf("Unsupported function code: 0x%02X\n", function_code);
             return build_exception_response(req, 0x01, response); // 非法功能码
- 
-       }
+        }
 }
 
 // 【回调1】当客户端发送数据时，libevent 自动调用此函数
-void read_cb(struct bufferevent *bev, void *ctx) {client_data_t *client = (client_data_t *)ctx;
+void read_cb(struct bufferevent *bev, void *ctx) {
+    client_data_t *client = (client_data_t *)ctx;
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t available = evbuffer_get_length(input);
     
@@ -263,6 +263,10 @@ void read_cb(struct bufferevent *bev, void *ctx) {client_data_t *client = (clien
                 printf(" %02X", response[i]);
             }
             printf("\n");
+        }else {
+            printf("Invalid Modbus request received, closing connection\n");
+            bufferevent_free(bev);
+            return;
         }
 
         // 从缓冲区中移除已处理的帧，把后面没处理的盖到前面去
